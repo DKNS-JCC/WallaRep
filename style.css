@@ -8,8 +8,6 @@
   --accent: #1f7a5c;
   --accent-text: #ffffff;
   --soft-bg: #eef2f6;
-  --warn-bg: #fdf0e6;
-  --warn-text: #8a3b00;
   --bad: #c2410c;
   --mid: #b7791f;
   --good: #1f7a5c;
@@ -27,8 +25,6 @@
     --accent: #4fbf95;
     --accent-text: #0d1f18;
     --soft-bg: #262b33;
-    --warn-bg: #3a2616;
-    --warn-text: #ffc39a;
     --bad: #fb8c4c;
     --mid: #e0b04f;
     --good: #4fbf95;
@@ -166,7 +162,7 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: -4px 0 18px;
+  margin: 16px 0 0;
   padding: 8px;
   border-radius: var(--radius);
   background: var(--soft-bg);
@@ -251,39 +247,82 @@ button:disabled {
   font-size: 0.88rem;
 }
 
+/* ---------- bad reviews ---------- */
+
+.bad-reviews {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.bad-reviews h3,
+.reviews h3 {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+}
+
+#bad-status {
+  margin: 0 0 6px;
+  font-size: 0.88rem;
+}
+
 /* ---------- reports ---------- */
 
 .reports {
   margin: 18px 0 0;
-  padding: 14px 16px;
+  padding: 16px;
   border-radius: var(--radius);
   background: var(--soft-bg);
-  display: grid;
-  grid-template-columns: auto 1fr;
-  column-gap: 14px;
-  align-items: center;
 }
 
-.reports-some {
-  background: var(--warn-bg);
-  color: var(--warn-text);
+.reports p {
+  margin: 6px 0 0;
+}
+
+.reports-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
 }
 
 .reports-value {
-  grid-row: span 2;
-  font-size: 2.2rem;
+  font-size: 2.6rem;
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 
 .reports-label {
+  font-size: 1.1rem;
   font-weight: 600;
+}
+
+.reports-verdict {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.reports[data-level="normal"] .reports-verdict,
+.reports[data-level="below"] .reports-verdict {
+  color: var(--good);
+}
+
+.reports[data-level="above"] .reports-verdict {
+  color: var(--mid);
+}
+
+.reports[data-level="high"] .reports-verdict {
+  color: var(--bad);
+}
+
+.reports-comparison {
+  font-size: 0.95rem;
 }
 
 .reports-note {
   font-size: 0.82rem;
-  opacity: 0.8;
+  color: var(--muted);
 }
 
 /* ---------- stats ---------- */
@@ -315,24 +354,8 @@ button:disabled {
   border-top: 1px solid var(--border);
 }
 
-.reviews h3 {
-  margin: 0 0 8px;
-  font-size: 1.05rem;
-}
 
-.reviews h4 {
-  margin: 18px 0 8px;
-  font-size: 0.95rem;
-}
 
-#reviews-status {
-  margin: 0 0 8px;
-  font-size: 0.88rem;
-}
-
-#reviews-status:empty {
-  display: none;
-}
 
 .dist {
   display: grid;

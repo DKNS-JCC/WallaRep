@@ -6,7 +6,7 @@
   <title>WallaRep — Reputación de vendedores de Wallapop</title>
   <meta
     name="description"
-    content="Pega el enlace de un anuncio o perfil de Wallapop y mira las denuncias recibidas, valoraciones y reseñas negativas del vendedor."
+    content="Pega el enlace de un anuncio o perfil de Wallapop y mira cuántos reportes ha recibido el vendedor, comparado con vendedores parecidos."
   />
   <meta name="color-scheme" content="light dark" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='8' fill='%231f7a5c'/></svg>" />
@@ -17,8 +17,9 @@
     <header class="header">
       <h1>WallaRep</h1>
       <p class="subtitle">
-        Pega el enlace de un anuncio o de un perfil de Wallapop para ver las
-        denuncias que ha recibido el vendedor y sus peores reseñas.
+        Pega el enlace de un anuncio o de un perfil de Wallapop para ver cuántos
+        reportes ha recibido el vendedor, un dato que la app de Wallapop no
+        enseña.
       </p>
     </header>
 
@@ -41,14 +42,6 @@
     <p id="status" class="status" role="status" aria-live="polite"></p>
 
     <section id="result" class="result" hidden>
-      <a id="item-card" class="item-card" target="_blank" rel="noopener noreferrer" hidden>
-        <img id="item-image" alt="" />
-        <span class="item-text">
-          <span id="item-title" class="item-title"></span>
-          <span id="item-meta" class="item-meta"></span>
-        </span>
-      </a>
-
       <div class="seller-card">
         <div class="seller-avatar" id="seller-avatar" aria-hidden="true"></div>
         <div class="seller-identity">
@@ -61,12 +54,24 @@
 
       <dl class="stats-grid" id="stats-grid"></dl>
 
-      <section class="reviews" aria-labelledby="reviews-heading">
-        <h3 id="reviews-heading">Reseñas</h3>
-        <p id="reviews-status" class="muted"></p>
+      <a id="item-card" class="item-card" target="_blank" rel="noopener noreferrer" hidden>
+        <img id="item-image" alt="" />
+        <span class="item-text">
+          <span id="item-title" class="item-title"></span>
+          <span id="item-meta" class="item-meta"></span>
+        </span>
+      </a>
+
+      <section class="bad-reviews" aria-labelledby="bad-heading">
+        <h3 id="bad-heading">Reseñas negativas</h3>
+        <p id="bad-status" class="muted"></p>
+        <ol id="bad-list" class="review-list"></ol>
+      </section>
+
+      <section class="reviews" id="reviews-more" aria-labelledby="reviews-heading" hidden>
+        <h3 id="reviews-heading">Todas las reseñas</h3>
         <div id="reviews-dist" class="dist"></div>
-        <div id="reviews-bad"></div>
-        <details id="reviews-all-wrap" hidden>
+        <details id="reviews-all-wrap">
           <summary id="reviews-all-summary"></summary>
           <ol id="reviews-all" class="review-list"></ol>
         </details>

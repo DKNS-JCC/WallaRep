@@ -3,13 +3,59 @@
 Herramienta web no oficial para consultar la reputación pública de un vendedor
 de Wallapop a partir del enlace de uno de sus anuncios o de su perfil.
 
-Muestra:
+Muestra, por este orden:
 
-- **Denuncias recibidas** (`reports_received`): la API pública de Wallapop lo
-  devuelve, pero la app no lo enseña.
-- Valoración media, ventas, compras y anuncios en venta.
-- Reparto de reseñas por estrellas y, aparte, las reseñas de 3 estrellas o
-  menos con su comentario. Se leen hasta las 400 más recientes.
+1. **Reportes recibidos** (`reports_received`), comparados con vendedores de
+   actividad parecida. Es el motivo de la herramienta: la API pública de
+   Wallapop lo devuelve, pero la app no lo enseña.
+2. Valoración media, ventas, compras y anuncios en venta.
+3. Reseñas de 3 estrellas o menos con su comentario, fecha y artículo (la app
+   de Wallapop no permite filtrarlas). Se leen hasta las 400 más recientes.
+4. Reparto de todas las reseñas por estrellas y la lista completa.
+
+### Qué es `reports_received`
+
+Comprobado a mano con dos cuentas (septiembre de 2026):
+
+- Suma 1 cuando alguien reporta **uno de sus anuncios** y también cuando
+  alguien usa **«Reportar usuario»** desde el chat.
+- Suma al instante, sin revisión de Wallapop, y no se sabe el motivo.
+- Cada persona que reporta al usuario solo suma una vez.
+
+Por eso el número suelto no dice mucho: en una muestra de 9.407 vendedores
+(septiembre de 2026), el 51 % tenía al menos un reporte, el 10 % tenía más de
+12, y el número crece con las ventas y es unas 3 veces mayor en profesionales.
+
+### Cómo se decide si es «normal»
+
+`scripts/build-peers.mjs` toma una muestra de vendedores reales y ajusta una
+regresión lineal de `log(1 + reportes)` sobre `log(1 + ventas)`,
+`log(1 + reseñas)`, si es profesional y los años de antigüedad. Las compras y
+los anuncios activos se probaron y no aportan nada una vez están las ventas.
+Guarda en `peers.json` solo los coeficientes y los percentiles de los
+residuos, separados en tres niveles de actividad (la dispersión cambia con el
+volumen).
+
+Con eso la app calcula, para el vendedor consultado:
+
+- lo típico para su perfil (la mediana de vendedores parecidos);
+- qué porcentaje de vendedores parecidos tiene menos reportes que él;
+- un veredicto: por debajo (percentil < 25), normal, por encima
+  (percentil > 75) o muy por encima (percentil > 90). Solo se sale de
+  «normal» si además la diferencia con lo típico es de 3 reportes o más: con
+  pocos reportes el percentil se mueve mucho (1 reporte puede superar al 75 %
+  cuando casi todos tienen 0) y no significa nada.
+
+Es una estimación: la muestra sale de búsquedas públicas y el modelo explica
+en torno a la mitad de la variación. El script separa un 20 % de la muestra
+para comprobar que los percentiles están bien calibrados fuera de los datos
+de ajuste.
+
+```bash
+node scripts/build-peers.mjs           # nueva muestra y ajuste
+node scripts/build-peers.mjs --refit   # reajustar con la muestra guardada
+node scripts/build-peers.mjs --extend  # añadir más profesionales a la muestra
+```
 
 Acepta el enlace tal cual, sin `https://`, o el texto completo que copia el
 botón «Compartir» de la app. La URL de la página (`?url=...`) se puede
