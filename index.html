@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WallaRep — Reputación pública de un anuncio de Wallapop</title>
+  <meta
+    name="description"
+    content="Consulta datos públicos de reputación (valoraciones, ventas, denuncias recibidas...) de un vendedor de Wallapop a partir del enlace de su anuncio."
+  />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="page">
+    <header class="header">
+      <h1>WallaRep</h1>
+      <p class="subtitle">
+        Pega el enlace de un anuncio de Wallapop y muestra los datos públicos
+        del vendedor, incluidos algunos que Wallapop no enseña en su propia
+        app.
+      </p>
+    </header>
+
+    <form id="lookup-form" class="lookup-form">
+      <input
+        id="url-input"
+        type="url"
+        inputmode="url"
+        autocomplete="off"
+        placeholder="https://es.wallapop.com/item/..."
+        required
+      />
+      <button type="submit" id="submit-btn">Consultar</button>
+    </form>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+
+    <section id="result" class="result" hidden>
+      <div class="seller-card">
+        <img id="seller-avatar" class="seller-avatar" alt="" />
+        <div class="seller-identity">
+          <h2 id="seller-name"></h2>
+          <p id="seller-meta" class="seller-meta"></p>
+        </div>
+      </div>
+
+      <div class="stats-grid" id="stats-grid"></div>
+
+      <p class="item-context" id="item-context"></p>
+    </section>
+
+    <footer class="footer">
+      <p>
+        <strong>WallaRep es una herramienta independiente, no oficial y sin
+        afiliación con Wallapop S.L.</strong> Los datos se piden en directo a
+        la API pública de Wallapop cada vez que consultas un anuncio: no se
+        guardan, ni se registran, ni se comparten con nadie. Esta página no
+        emite ninguna opinión sobre la fiabilidad de ningún vendedor — se
+        limita a mostrar los números tal cual los ofrece Wallapop; sé tú
+        quien los interprete. Los datos pueden estar incompletos, dejar de
+        funcionar o cambiar sin aviso, ya que dependen de una API interna no
+        documentada por Wallapop.
+      </p>
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
