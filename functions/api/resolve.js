@@ -1,121 +1,139 @@
-// Cloudflare Pages Function: GET /api/resolve?url=<wallapop item url>
+// Cloudflare Pages Function: GET /api/resolve?url=<wallapop item or profile url>
 //
-// The only job of this function is to turn a Wallapop item URL into the
-// seller's public user ID. Wallapop's item page is server-rendered and
-// embeds that ID in a __NEXT_DATA__ JSON blob, but the HTML page itself
-// has no CORS headers, so the browser can't read it cross-origin. Every
-// other call (seller profile, seller stats) has open CORS and is made
-// directly by the browser against api.wallapop.com — this function never
-// sees or returns reputation data, only the opaque seller ID.
+// Turns a Wallapop item URL (/item/...) or profile URL (/user/...) into the
+// seller's public user ID. Both pages are server-rendered and embed that ID
+// in a __NEXT_DATA__ JSON blob, but the HTML has no CORS headers, so the
+// browser can't read it cross-origin. Every other call (profile, stats,
+// reviews) has open CORS and is made directly by the browser against
+// api.wallapop.com — this function never sees reputation data.
 //
 // Stateless: nothing is logged, cached, or persisted.
 
 const ALLOWED_HOST = /(^|\.)wallapop\.com$/i;
+const PAGE_PATH = /\/(item|user)\/[^/?#]+/i;
+const FETCH_TIMEOUT_MS = 10000;
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8" },
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+    },
   });
 }
 
-export async function onRequestGet(context) {
-  const requestUrl = new URL(context.request.url);
-  const target = requestUrl.searchParams.get("url");
+function error(message, status) {
+  return jsonResponse({ error: message }, status);
+}
 
-  if (!target) {
-    return jsonResponse({ error: "Falta el parámetro 'url'." }, 400);
-  }
-
+function parseTarget(raw) {
+  let text = raw.trim();
+  if (!/^https?:\/\//i.test(text)) text = `https://${text}`;
   let parsed;
   try {
-    parsed = new URL(target);
+    parsed = new URL(text);
   } catch {
-    return jsonResponse({ error: "La URL no es válida." }, 400);
+    return null;
   }
+  if (!ALLOWED_HOST.test(parsed.hostname)) return null;
+  const match = parsed.pathname.match(PAGE_PATH);
+  if (!match) return null;
+  // Rebuild the URL ourselves: fixed host and scheme, no query string.
+  return {
+    kind: match[1].toLowerCase(),
+    url: `https://es.wallapop.com${match[0]}`,
+  };
+}
 
-  if (parsed.protocol !== "https:" || !ALLOWED_HOST.test(parsed.hostname)) {
-    return jsonResponse(
-      { error: "Solo se admiten enlaces de wallapop.com." },
+function itemSummary(item) {
+  if (!item) return null;
+  const title = item.title?.original ?? item.title ?? null;
+  const cash = item.price?.cash;
+  return {
+    title: typeof title === "string" ? title : null,
+    price:
+      cash && typeof cash.amount === "number"
+        ? { amount: cash.amount, currency: cash.currency || "EUR" }
+        : null,
+    image: item.images?.[0]?.urls?.small ?? null,
+    url: item.slug ? `https://es.wallapop.com/item/${item.slug}` : null,
+    sold: Boolean(item.flags?.sold),
+    reserved: Boolean(item.flags?.reserved),
+  };
+}
+
+export async function onRequestGet(context) {
+  const raw = new URL(context.request.url).searchParams.get("url");
+  if (!raw) return error("Falta el enlace.", 400);
+
+  const target = parseTarget(raw);
+  if (!target) {
+    return error(
+      "Ese enlace no es de un anuncio ni de un perfil de Wallapop.",
       400
     );
   }
 
-  if (!/^\/item\//i.test(parsed.pathname)) {
-    return jsonResponse(
-      { error: "El enlace no parece ser el de un anuncio (falta /item/)." },
-      400
-    );
-  }
-
-  let pageResponse;
+  let page;
   try {
-    pageResponse = await fetch(parsed.toString(), {
-      headers: {
-        "user-agent":
-          "WallaRepBot/1.0 (+https://github.com/; herramienta de consulta de reputacion publica de Wallapop)",
-        accept: "text/html",
-      },
+    page = await fetch(target.url, {
+      headers: { "user-agent": "WallaRep/1.0", accept: "text/html" },
       redirect: "follow",
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
   } catch {
-    return jsonResponse(
-      { error: "No se ha podido contactar con Wallapop." },
-      502
-    );
+    return error("Wallapop no responde. Prueba otra vez en un momento.", 504);
   }
 
-  if (pageResponse.status === 404) {
-    return jsonResponse(
-      { error: "El anuncio no existe o ya no está disponible." },
+  if (page.status === 404 || page.status === 410) {
+    return error(
+      target.kind === "item"
+        ? "Ese anuncio no existe o ya se ha borrado."
+        : "Ese perfil no existe o se ha dado de baja.",
       404
     );
   }
-
-  if (!pageResponse.ok) {
-    return jsonResponse(
-      { error: "Wallapop ha devuelto un error al pedir el anuncio." },
-      502
+  if (page.status === 429 || page.status === 403) {
+    return error(
+      "Wallapop está limitando las consultas. Espera un poco y vuelve a probar.",
+      503
     );
   }
+  if (!page.ok) {
+    return error(`Wallapop ha respondido con un error (${page.status}).`, 502);
+  }
 
-  const html = await pageResponse.text();
+  const html = await page.text();
   const match = html.match(
     /<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/
   );
-
-  if (!match) {
-    return jsonResponse(
-      { error: "No se ha podido leer la información del anuncio." },
-      502
-    );
-  }
-
-  let data;
+  let pageProps;
   try {
-    data = JSON.parse(match[1]);
+    pageProps = JSON.parse(match[1])?.props?.pageProps;
   } catch {
-    return jsonResponse(
-      { error: "La información del anuncio tiene un formato inesperado." },
+    pageProps = null;
+  }
+  if (!pageProps) {
+    return error(
+      "Wallapop ha cambiado su web y ya no se puede leer. Hay que actualizar WallaRep.",
       502
     );
   }
 
-  const pageProps = data?.props?.pageProps;
-  const sellerId = pageProps?.itemSeller?.id;
-  const itemTitle =
-    pageProps?.item?.title?.original ?? pageProps?.item?.title ?? null;
-
+  const sellerId =
+    target.kind === "item" ? pageProps.itemSeller?.id : pageProps.user?.id;
   if (!sellerId) {
-    return jsonResponse(
-      { error: "No se ha encontrado al vendedor de este anuncio." },
+    return error(
+      target.kind === "item"
+        ? "Ese anuncio no existe o ya se ha borrado."
+        : "Ese perfil no existe o se ha dado de baja.",
       404
     );
   }
 
-  return jsonResponse({ sellerId, itemTitle: itemTitle ?? null });
-}
-
-export async function onRequestOptions() {
-  return new Response(null, { status: 204 });
+  return jsonResponse({
+    sellerId,
+    item: target.kind === "item" ? itemSummary(pageProps.item) : null,
+  });
 }
